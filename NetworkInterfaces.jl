@@ -75,15 +75,12 @@ function NICList()
                     continue
                 end
                 fields = split(strip(ln), r"\s+")
-                ifmtu = parse(UInt32, popfirst!(fields))
+                ifmtu = parse(UInt32, fields[1])
                 #
-                # Remove the next three elements and what remains is
-                # the interface name/net connection id on Windows.
+                # Ignore elements 2-4 and collect the rest into the
+                # interface name.
                 #
-                popfirst!(fields)
-                popfirst!(fields)
-                popfirst!(fields)
-                ifname = join(fields, " ")
+                ifname = join(fields[5:length(fields)], " ")
                 mtumap[ifname] = ifmtu
             end
         end
