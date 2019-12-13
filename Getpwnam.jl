@@ -78,7 +78,7 @@ function win_getlocalgroups(name::AbstractString)
             for ln in eachline(file)
                 if (m = match(r"^Local Group Memberships\s+(.*)$", ln)) !== nothing
                     groups = map(g -> strip(g), split(m[1], r"\s*\*"))
-                    groups = groups[2:length(groups)]
+                    popfirst!(groups)
                     break
                 end
             end
