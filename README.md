@@ -1,6 +1,9 @@
 # JuliaTidbits
 Random Julia code/modules that might be useful to someone.
 
+<h5>Getifaddrs.jl</h5>
+Implements getifaddrs() for Julia. Some of the exports may collide with other modules, if they export AF_INET and or AF_INET6.
+
 <h5>Getpwnam.jl</h5>
 Implements getpwnam() for Julia and uses a kludgy method of getting similar info from Windows. 
 
