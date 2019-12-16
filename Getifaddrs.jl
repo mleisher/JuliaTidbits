@@ -126,10 +126,8 @@ function inet_ntop(addr::Union{UInt32,UInt128})
     end
     buf = zeros(UInt8, size)
     p = typeof(addr) == UInt32 ?
-        ccall(:inet_ntop, Cstring, (UInt32, Ptr{UInt32}, String, UInt32),
-              family, addr_ref, String(buf), size) :
-                  ccall(:inet_ntop, Cstring, (UInt32, Ptr{UInt128}, String, UInt32),
-                        family, addr_ref, String(buf), size)
+        ccall(:inet_ntop, Cstring, (UInt32, Ptr{UInt32}, String, UInt32), family, addr_ref, String(buf), size) :
+        ccall(:inet_ntop, Cstring, (UInt32, Ptr{UInt128}, String, UInt32), family, addr_ref, String(buf), size)
     if p !== nothing
         p = unsafe_string(p)
     end
@@ -181,6 +179,7 @@ function iterate(ia::Ptr{ifaddrs})
 end
 
 function getifaddrs()
+    iflist = nothing
     ifa_ptr = Ref{Ptr{ifaddrs}}(C_NULL)
     if (n = ccall(:getifaddrs, Cint, (Ptr{Ptr{ifaddrs}},), ifa_ptr)) == 0
         iflist = iterate(ifa_ptr[])
