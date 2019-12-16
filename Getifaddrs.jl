@@ -27,7 +27,7 @@ module Getifaddrs
 export AF_INET, AF_INET6, InterfaceAddress, getifaddrs, inet_ntop, inet_netmask_bits
 
 const AF_INET          = 2
-const AF_INET6         = !Sys.iswindows() ? 10 : 23
+const AF_INET6         = Sys.iswindows() ? 23 : Sys.isapple() ? 30 : 10
 const INET_ADDRSTRLEN  = 16
 const INET6_ADDRSTRLEN = 46
 
@@ -57,6 +57,29 @@ struct ifaddrs
     #
     bduaddr::Ptr{Cvoid}
     data::Ptr{Cvoid}
+end
+
+struct sockaddr_apple
+    sa_size::UInt8
+    sa_family::UInt8
+    sa_data::Ptr{Cvoid}
+end
+
+struct sockaddr_in_apple
+    sin_size::UInt8
+    sin_family::UInt8
+    sin_port::UInt16
+    sin_addr::UInt32
+    pad::Ptr{Cvoid}
+end
+
+struct sockaddr_in6_apple
+    sin_size::UInt8
+    sin_family::UInt16
+    sin_port::UInt16
+    sin_flowinfo::UInt32
+    sin_addr::UInt128
+    sin_scope_id::UInt32
 end
 
 struct sockaddr
@@ -117,19 +140,30 @@ function iterate(ia::Ptr{ifaddrs})
 
     local_ia = unsafe_load(ia)
     while true
-        sa = unsafe_load(convert(Ptr{sockaddr},local_ia.address))
+        sa = !Sys.isapple() ?
+            unsafe_load(convert(Ptr{sockaddr},local_ia.address)) :
+            unsafe_load(convert(Ptr{sockaddr_apple},local_ia.address))
+
         family = sa.sa_family
         if family == AF_INET || family == AF_INET6
             name = unsafe_string(local_ia.name)
             if sa.sa_family == AF_INET
-                sin = unsafe_load(convert(Ptr{sockaddr_in}, local_ia.address))
-                sin_mask = unsafe_load(convert(Ptr{sockaddr_in}, local_ia.netmask))
+                sin = !Sys.isapple() ?
+                    unsafe_load(convert(Ptr{sockaddr_in}, local_ia.address)) :
+                    unsafe_load(convert(Ptr{sockaddr_in_apple}, local_ia.address))
+                sin_mask = !Sys.isapple() ?
+                    unsafe_load(convert(Ptr{sockaddr_in}, local_ia.netmask)) :
+                    unsafe_load(convert(Ptr{sockaddr_in_apple}, local_ia.netmask))
                 address = sin.sin_addr
                 netmask = sin_mask.sin_addr
                 scope_id = -1
             else
-                sin6 = unsafe_load(convert(Ptr{sockaddr_in6}, local_ia.address))
-                sin6_mask = unsafe_load(convert(Ptr{sockaddr_in6}, local_ia.netmask))
+                sin6 = !Sys.isapple() ?
+                    unsafe_load(convert(Ptr{sockaddr_in6}, local_ia.address)) :
+                    unsafe_load(convert(Ptr{sockaddr_in6_apple}, local_ia.address))
+                sin6_mask = !Sys.isapple() ?
+                    unsafe_load(convert(Ptr{sockaddr_in6}, local_ia.netmask)) :
+                    unsafe_load(convert(Ptr{sockaddr_in6_apple}, local_ia.netmask))
                 address = sin6.sin_addr
                 netmask = sin6_mask.sin_addr
                 scope_id = sin6.sin_scope_id
