@@ -34,6 +34,7 @@ const INET6_ADDRSTRLEN = 46
 struct InterfaceAddress
     name::String
     family::UInt32
+    flags::UInt32
     address::Union{UInt32,UInt128}
     netmask::Union{UInt32,UInt128}
 
@@ -147,6 +148,7 @@ function iterate(ia::Ptr{ifaddrs})
         family = sa.sa_family
         if family == AF_INET || family == AF_INET6
             name = unsafe_string(local_ia.name)
+            flags = local_ia.flags
             if sa.sa_family == AF_INET
                 sin = !Sys.isapple() ?
                     unsafe_load(convert(Ptr{sockaddr_in}, local_ia.address)) :
@@ -168,7 +170,7 @@ function iterate(ia::Ptr{ifaddrs})
                 netmask = sin6_mask.sin_addr
                 scope_id = sin6.sin_scope_id
             end
-            push!(iflist, InterfaceAddress(name, family, address, netmask, scope_id))
+            push!(iflist, InterfaceAddress(name, family, flags, address, netmask, scope_id))
         end
         if local_ia.next == Ptr{ifaddrs}(0)
             break
