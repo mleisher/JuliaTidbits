@@ -28,7 +28,7 @@
 module Getifaddrs
 
 if Sys.iswindows()
-    Error("The 'Getifaddrs' module only works on Linux and MacOS.")
+    error("The 'Getifaddrs' module only works on Linux and MacOS.")
 end
 
 #
@@ -93,6 +93,12 @@ const flag_names = [
     "DYNAMIC"
 ]
 
+##############################################################################
+#
+# Structures visible externally.
+#
+##############################################################################
+
 struct InterfaceAddress
     name::String
     family::UInt32
@@ -110,6 +116,12 @@ struct InterfaceAddress
     #
     scope_id::Int32
 end
+
+##############################################################################
+#
+# Structures used for internal access to the C structs.
+#
+##############################################################################
 
 #
 # Structure to use with a call to the C/C++ getifaddrs() function.
@@ -170,46 +182,11 @@ struct sockaddr_in6
     sin_scope_id::UInt32
 end
 
-function inet_flag_names(flags::UInt32)
-    names::Vector{String} = []
-    for i in 1:16
-        if flags & 2^(i-1) != 0
-            push!(names, flag_names[i])
-        end
-    end
-    names
-end
-
-function inet_netmask_bits(netmask::Union{UInt32,UInt128})
-    nbits = typeof(netmask) == UInt32 ? 32 : 128
-    count = 0
-    for i in 1:nbits
-        if netmask & 2^(i-1) != 0
-            count = count + 1
-        end
-    end
-    count
-end
-
-function inet_ntop(addr::Union{UInt32,UInt128})
-    if typeof(addr) == UInt32
-        family = AF_INET
-        size = INET_ADDRSTRLEN
-        addr_ref = Ref{UInt32}(addr)
-    else
-        family = AF_INET6
-        size = INET6_ADDRSTRLEN
-        addr_ref = Ref{UInt128}(addr)
-    end
-    buf = zeros(UInt8, size)
-    p = typeof(addr) == UInt32 ?
-        ccall(:inet_ntop, Cstring, (UInt32, Ptr{UInt32}, String, UInt32), family, addr_ref, String(buf), size) :
-        ccall(:inet_ntop, Cstring, (UInt32, Ptr{UInt128}, String, UInt32), family, addr_ref, String(buf), size)
-    if p !== nothing
-        p = unsafe_string(p)
-    end
-    p
-end
+##############################################################################
+#
+# Internal functions.
+#
+##############################################################################
 
 function iterate(ia::Ptr{ifaddrs})
     iflist::Vector{InterfaceAddress} = []
@@ -275,6 +252,53 @@ function iterate(ia::Ptr{ifaddrs})
         local_ia = unsafe_load(local_ia.next)
     end
     iflist
+end
+
+##############################################################################
+#
+# Functions visible externally.
+#
+##############################################################################
+
+function inet_flag_names(flags::UInt32)
+    names::Vector{String} = []
+    for i in 1:16
+        if flags & 2^(i-1) != 0
+            push!(names, flag_names[i])
+        end
+    end
+    names
+end
+
+function inet_netmask_bits(netmask::Union{UInt32,UInt128})
+    nbits = typeof(netmask) == UInt32 ? 32 : 128
+    count = 0
+    for i in 1:nbits
+        if netmask & 2^(i-1) != 0
+            count = count + 1
+        end
+    end
+    count
+end
+
+function inet_ntop(addr::Union{UInt32,UInt128})
+    if typeof(addr) == UInt32
+        family = AF_INET
+        size = INET_ADDRSTRLEN
+        addr_ref = Ref{UInt32}(addr)
+    else
+        family = AF_INET6
+        size = INET6_ADDRSTRLEN
+        addr_ref = Ref{UInt128}(addr)
+    end
+    buf = zeros(UInt8, size)
+    p = typeof(addr) == UInt32 ?
+        ccall(:inet_ntop, Cstring, (UInt32, Ptr{UInt32}, String, UInt32), family, addr_ref, String(buf), size) :
+        ccall(:inet_ntop, Cstring, (UInt32, Ptr{UInt128}, String, UInt32), family, addr_ref, String(buf), size)
+    if p !== nothing
+        p = unsafe_string(p)
+    end
+    p
 end
 
 function getifaddrs()
