@@ -1,6 +1,9 @@
 # JuliaTidbits
 Random Julia code/modules that might be useful to someone.
 
+<h5>Fortuna.jl</h5>
+Implements only the generator of Ferguson and Schneier's Fortuna cryptographically secure PRNG.
+
 <h5>Getifaddrs.jl</h5>
 Implements getifaddrs() for Julia. Some of the exports may collide with other modules, if they export AF_INET and or AF_INET6.
 
