@@ -35,9 +35,45 @@ module Fortuna
 
 export FortunaRNG, seed!, reset!, pseudo_random_data!, getrand
 
+#
+# Short documentation:
+#
+# This RNG uses the sha256 hasher and AES256 cipher from Nettle.jl for
+# instances that don't specify a hasher and cipher.
+#
+# FortunaRNG
+#
+#   There are four different constructors available, two with seeds,
+#   two without (near end of this file). If a form without a seed is
+#   used, and a seed is not manually set before the first use, an ad
+#   hoc seed based on system info is collected and added
+#   automatically.
+#
+# reset!(r::FortunaRNG)
+#
+#    This resets the hash and cipher used for the RNG.
+#
+# seed!(r::FortunaRNG, seed::Vector{UInt8})
+# seed!(r::FortunaRNG, seed)
+#
+#    The seed!() functions are for seeding the RNG. The second form
+#    simply writes the seed to an IOBuffer, and assumes the type can
+#    be written to a byte stream.
+#
+# pseudo_random_data!(r::FortunaRNG, n::Integer) -> Vector{UInt8}
+#
+#    This function returns 'n' bytes of pseudo-random data.
+#
+# getrand(r::FortunaRNG, t::Type = Float64, count::Integer = 1, range::AbstractRange = 0:0) -> Vector{t}
+#
+#    This function generates 'count' items of type 't'. If a range is
+#    specified, 'count' randomly selected items from that range will
+#    be returned. At the moment, it is assumed that 't' and 'range'
+#    agree typewise.
+#
+
 using Random
 using Nettle
-using Dates
 
 #
 # Try to load modules found in
@@ -261,7 +297,8 @@ end
 #
 # Generate 'n' bytes of pseudo-random data and return them.
 #
-function pseudo_random_data!(frng::FortunaRNG, n)
+function pseudo_random_data!(frng::FortunaRNG, n::Integer)
+    n = n < 0 ? -n : n
     nblocks  = convert(UInt64, floor((n + frng.cipher_block_size - 1) / frng.cipher_block_size))
     nkblocks = convert(UInt64, floor((frng.hash_key_size + frng.cipher_block_size - 1) / frng.cipher_block_size))
 
