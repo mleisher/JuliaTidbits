@@ -64,17 +64,19 @@ export FortunaRNG, seed!, reset!, pseudo_random_data!, getrand
 #
 #    This function returns 'n' bytes of pseudo-random data.
 #
-# getrand(r::FortunaRNG, t::Type = Float64, count::Integer = 1, range::AbstractRange = 0:0) -> Vector{t}
+# getrand(r::FortunaRNG, t::Type = Float64, count::Integer = 1) -> Vector{t}
 #
-#    This function generates 'count' items of type 't'. If a range is
-#    specified, 'count' randomly selected items from that range will
-#    be returned. At the moment, it is assumed that 't' and 'range'
-#    agree typewise.
+#    This function generates 'count' items of type 't'.
+#
+# getrand(r::FortunaRNG, range::AbstractRange = 0:0, count::Integer = 1) -> Vector{typeof(range[1])}
+#
+#    This function generates 'count' items that have the same type as
+#    the beginning of the range. All of the values are taken from the
+#    specified range.
 #
 
 using Random
 using Nettle
-
 #
 # Try to load modules found in
 # https://github.com/mleisher/JuliaTidbits for ad hoc seeding.
@@ -318,21 +320,21 @@ function pseudo_random_data!(frng::FortunaRNG, n::Integer)
     res[1:n]
 end
 
-function getrand(frng::FortunaRNG, t::Type = Float64,
-                 count::Integer = 1, range::AbstractRange = 0:0)
+function getrand(frng::FortunaRNG, range::AbstractRange = 0:0, count::Integer = 1)
     count = count < 0 ? -count : count
-    if length(range) == 1
-        a = reinterpret(t, pseudo_random_data!(frng, sizeof(t) * count))
-        Vector{t}(a)
-    else
-        out::Vector{t} = []
-        for i in 1:count
-            idx = reinterpret(UInt128, pseudo_random_data!(frng, sizeof(UInt128)))
-            idx = convert(UInt128, floor(idx[1]/typemax(UInt128)*length(range)+1))
-            append!(out, range[idx])
-        end
-        out
+    out::Vector{typeof(range[1])} = []
+    for i in 1:count
+        idx = reinterpret(UInt128, pseudo_random_data!(frng, sizeof(UInt128)))
+        idx = convert(UInt128, floor(idx[1]/typemax(UInt128)*length(range)+1))
+        append!(out, range[idx])
     end
+    out
+end
+
+function getrand(frng::FortunaRNG, t::Type = Float64, count::Integer = 1)
+    count = count < 0 ? -count : count
+    a = reinterpret(t, pseudo_random_data!(frng, sizeof(t) * count))
+    Vector{t}(a)
 end
 
 #
@@ -347,7 +349,7 @@ end
 # reset!() on the RNG before seeding with the desired value. Example:
 #
 # r = FortunaRNG()
-# v = getrand(r, Char, 10, 0x370:0x3cf)
+# v = getrand(r, Char, 10)
 # map(x -> println(x), v)
 # reset!(r)
 # seed!(r, 0x1020304)
