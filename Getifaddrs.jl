@@ -1,16 +1,16 @@
 #
 # Implementation of getifaddrs() for Julia.
 #
-# getifaddrs()
+# getifaddrs() -> Vector{InterfaceAddress}
 #   Returns a vector of network interface addresses.
 #
-# inet_flag_names(flags::UInt32)
+# inet_flag_names(flags::UInt32) -> Vector{String}
 #   Return a vector of strings with flag names.
 #
-# inet_netmask_bits(netmask::Union{UInt23,UInt128})
+# inet_netmask_bits(netmask::Union{UInt23,UInt128}) -> UInt32 or UInt128
 #   Calculates the number of 1 bits in the netmask.
 #
-# inet_ntop(addr::Union{UInt23,UInt128})
+# inet_ntop(addr::Union{UInt23,UInt128}) -> String
 #   Converts the integer form of the network address to a string.
 #
 # Example usage:
@@ -233,12 +233,12 @@ function iterate(ia::Ptr{ifaddrs})
                 netmask = sin6_mask.sin_addr
                 if flags & 2^IFF_BROADCAST != 0 && local_ia.bduaddr != Ptr{Cvoid}(0)
                     bcast = unsafe_load(convert(Ptr{sockaddr_in6}, local_ia.bduaddr))
-                    bcast_or_p2p = Interface(flag_names[IFF_BROADCAST+1], family, IFF_BROADCAST,
-                                             bcast.sin_addr, UInt128(0), false, -1)
+                    bcast_or_p2p = InterfaceAddress(flag_names[IFF_BROADCAST+1], family, IFF_BROADCAST,
+                                                    bcast.sin_addr, UInt128(0), false, -1)
                 elseif flags & 2^IFF_POINTOPOINT != 0 && local_ia.bduaddr != Ptr{Cvoid}(0)
                     bcast = unsafe_load(convert(Ptr{sockaddr_in6}, local_ia.bduaddr))
-                    bcast_or_p2p = Interface(flag_names[IFF_POINTOPOINT+1], family, IFF_POINTOPOINT,
-                                             bcast.sin_addr, UInt128(0), false, -1)
+                    bcast_or_p2p = InterfaceAddress(flag_names[IFF_POINTOPOINT+1], family, IFF_POINTOPOINT,
+                                                    bcast.sin_addr, UInt128(0), false, -1)
                 else
                     bcast_or_p2p = false
                 end
