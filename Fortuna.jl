@@ -35,10 +35,48 @@ module Fortuna
 
 export FortunaRNG, seed!, reset!, pseudo_random_data!, getrand
 
+#
+# Short documentation:
+#
+# This RNG uses the sha256 hasher and AES256 cipher from Nettle.jl for
+# instances that don't specify a hasher and cipher.
+#
+# FortunaRNG
+#
+#   There are four different constructors available, two with seeds,
+#   two without (near end of this file). If a form without a seed is
+#   used, and a seed is not manually set before the first use, an ad
+#   hoc seed based on system info is collected and added
+#   automatically.
+#
+# reset!(r::FortunaRNG)
+#
+#    This resets the hash and cipher used for the RNG.
+#
+# seed!(r::FortunaRNG, seed::Vector{UInt8})
+# seed!(r::FortunaRNG, seed)
+#
+#    The seed!() functions are for seeding the RNG. The second form
+#    simply writes the seed to an IOBuffer, and assumes the type can
+#    be written to a byte stream.
+#
+# pseudo_random_data!(r::FortunaRNG, n::Integer) -> Vector{UInt8}
+#
+#    This function returns 'n' bytes of pseudo-random data.
+#
+# getrand(r::FortunaRNG, t::Type = Float64, count::Integer = 1) -> Vector{t}
+#
+#    This function generates 'count' items of type 't'.
+#
+# getrand(r::FortunaRNG, range::AbstractRange = 0:0, count::Integer = 1) -> Vector{typeof(range[1])}
+#
+#    This function generates 'count' items that have the same type as
+#    the beginning of the range. All of the values are taken from the
+#    specified range.
+#
+
 using Random
 using Nettle
-using Dates
-
 #
 # Try to load modules found in
 # https://github.com/mleisher/JuliaTidbits for ad hoc seeding.
@@ -261,7 +299,8 @@ end
 #
 # Generate 'n' bytes of pseudo-random data and return them.
 #
-function pseudo_random_data!(frng::FortunaRNG, n)
+function pseudo_random_data!(frng::FortunaRNG, n::Integer)
+    n = n < 0 ? -n : n
     nblocks  = convert(UInt64, floor((n + frng.cipher_block_size - 1) / frng.cipher_block_size))
     nkblocks = convert(UInt64, floor((frng.hash_key_size + frng.cipher_block_size - 1) / frng.cipher_block_size))
 
@@ -281,21 +320,21 @@ function pseudo_random_data!(frng::FortunaRNG, n)
     res[1:n]
 end
 
-function getrand(frng::FortunaRNG, t::Type = Float64,
-                 count::Integer = 1, range::AbstractRange = 0:0)
+function getrand(frng::FortunaRNG, range::AbstractRange = 0:0, count::Integer = 1)
     count = count < 0 ? -count : count
-    if length(range) == 1
-        a = reinterpret(t, pseudo_random_data!(frng, sizeof(t) * count))
-        Vector{t}(a)
-    else
-        out::Vector{t} = []
-        for i in 1:count
-            idx = reinterpret(UInt128, pseudo_random_data!(frng, sizeof(UInt128)))
-            idx = convert(UInt128, floor(idx[1]/typemax(UInt128)*length(range)+1))
-            append!(out, range[idx])
-        end
-        out
+    out::Vector{typeof(range[1])} = []
+    for i in 1:count
+        idx = reinterpret(UInt128, pseudo_random_data!(frng, sizeof(UInt128)))
+        idx = convert(UInt128, floor(idx[1]/typemax(UInt128)*length(range)+1))
+        append!(out, range[idx])
     end
+    out
+end
+
+function getrand(frng::FortunaRNG, t::Type = Float64, count::Integer = 1)
+    count = count < 0 ? -count : count
+    a = reinterpret(t, pseudo_random_data!(frng, sizeof(t) * count))
+    Vector{t}(a)
 end
 
 #
@@ -310,7 +349,7 @@ end
 # reset!() on the RNG before seeding with the desired value. Example:
 #
 # r = FortunaRNG()
-# v = getrand(r, Char, 10, 0x370:0x3cf)
+# v = getrand(r, Char, 10)
 # map(x -> println(x), v)
 # reset!(r)
 # seed!(r, 0x1020304)
