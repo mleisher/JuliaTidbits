@@ -304,7 +304,7 @@ end
 function getifaddrs()
     iflist = nothing
     ifa_ptr = Ref{Ptr{ifaddrs}}(C_NULL)
-    if (n = ccall(:getifaddrs, Cint, (Ptr{Ptr{ifaddrs}},), ifa_ptr)) == 0
+    if ccall(:getifaddrs, Cint, (Ptr{Ptr{ifaddrs}},), ifa_ptr) == 0
         iflist = iterate(ifa_ptr[])
         ccall(:freeifaddrs, Cvoid, (Ptr{ifaddrs},), ifa_ptr[])
     end
