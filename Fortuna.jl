@@ -57,23 +57,32 @@ export FortunaRNG, seed!, reset!, pseudo_random_data!, getrand
 # seed!(r::FortunaRNG, seed)
 #
 #    The seed!() functions are for seeding the RNG. The second form
-#    simply writes the seed to an IOBuffer, and assumes the type can
-#    be written to a byte stream.
+#    simply writes the seed to an IOBuffer, assuming the type can be
+#    written to a byte stream.
 #
 # pseudo_random_data!(r::FortunaRNG, n::Integer) -> Vector{UInt8}
 #
 #    This function returns 'n' bytes of pseudo-random data.
 #
-# getrand(r::FortunaRNG, t::Type = Float64, count::Integer = 1) -> Vector{t}
+# getrand(r::FortunaRNG, t::Type, count::Integer = 1) -> Vector{t}
 #
 #    This function generates 'count' items of type 't'.
 #
-# getrand(r::FortunaRNG, range::AbstractRange = 0:0, count::Integer = 1) -> Vector{typeof(range[1])}
+# getrand(r::FortunaRNG, range::AbstractRange, count::Integer = 1) -> Vector{typeof(range[1])}
 #
 #    This function generates 'count' items that have the same type as
 #    the beginning of the range. All of the values are taken from the
 #    specified range.
 #
+# getrand(frng::FortunaRNG, d::AbstractDict, count::Integer = 1) -> Vector{Pair{Any,Any}}
+#
+#    This function returns a vector of key/value pairs chosen from the dictionary.
+#
+# getrand(frng::FortunaRNG, s::AbstractSet, count::Integer = 1) -> Vector{Any}
+#
+#    This function returns a vector of set members.
+#
+
 
 using Random
 using Nettle
@@ -118,10 +127,10 @@ function set_key!(frng::FortunaRNG, key::Vector{UInt8})
 end
 
 #
-# Increment the counter. Manually wrap the values around because Julia
-# promotes to a larger type on overflow. The counter could probably be
-# a UInt128, but it is left this way in case larger cipher block sizes
-# come along in the future.
+# Increment the counter. Manually manage overflow because it is an
+# error to overflow a UInt8 in a vector of them. This could probably
+# be a UInt128, but it is left this way in case larger cipher block
+# sizes come along in the future.
 #
 function inc!(frng::FortunaRNG)
     for i in 1:length(frng.counter)
@@ -195,8 +204,7 @@ function ad_hoc_seed!(frng::FortunaRNG)
     #    https://github.com/mleisher/JuliaTidbits modules are available.
     #
     try
-        uservar = Sys.iswindows() ? "USERNAME" : "USER"
-        u = getpwnam(ENV[uservar])
+        u = getpwnam(ENV[Sys.iswindows() ? "USERNAME" : "USER"])
         write(b, u.name, u.uid, u.gid, u.gecos, u.dir, u.shell)
     catch
         #
@@ -216,11 +224,11 @@ function ad_hoc_seed!(frng::FortunaRNG)
 end
 
 #
-# This can be inlined, but checks to see if the counter is all zeros
-# or not.
+# This can probably be inlined. It checks to see if the counter is all
+# zeros or not. Assumes the counter vector exists.
 #
 function is_zero(b::Vector{UInt8})
-    length(b) == 0 || (b[1] == 0 && all(==(first(b)),b))
+    b[1] == 0 && all(==(first(b)),b)
 end
 
 #
@@ -300,7 +308,7 @@ end
 # Generate 'n' bytes of pseudo-random data and return them.
 #
 function pseudo_random_data!(frng::FortunaRNG, n::Integer)
-    n = n < 0 ? -n : n
+    n = abs(n)
     nblocks  = convert(UInt64, floor((n + frng.cipher_block_size - 1) / frng.cipher_block_size))
     nkblocks = convert(UInt64, floor((frng.hash_key_size + frng.cipher_block_size - 1) / frng.cipher_block_size))
 
@@ -320,9 +328,50 @@ function pseudo_random_data!(frng::FortunaRNG, n::Integer)
     res[1:n]
 end
 
-function getrand(frng::FortunaRNG, range::AbstractRange = 0:0, count::Integer = 1)
-    count = count < 0 ? -count : count
-    out::Vector{typeof(range[1])} = []
+function getrand(frng::FortunaRNG, d::AbstractDict, count::Integer = 1)
+    count = abs(count)
+    out::Vector{Pair{Any,Any}} = []
+
+    if length(d) > 0
+        #
+        # Get an indexable array of keys.
+        #
+        k = collect(keys(d))
+        for idx in getrand(frng, 1:length(d), count)
+            push!(out, Pair(k[idx], d[k[idx]]))
+        end
+    end
+    out
+end
+
+function getrand(frng::FortunaRNG, s::AbstractSet, count::Integer = 1)
+    count = abs(count)
+    out::Vector{Any} = []
+
+    if length(s) > 0
+        #
+        # Collect all the set members into an indexable vector.
+        #
+        sm = collect(s)
+        for idx in getrand(frng, 1:length(s), count)
+            push!(out, sm[idx])
+        end
+    end
+    out
+end
+
+function getrand(frng::FortunaRNG, range::AbstractRange, count::Integer = 1)
+    t = typeof(range[1])
+
+    #
+    # Guard against non-bits types.
+    #
+    if !isbitstype(t)
+        return []
+    end
+
+    count = abs(count)
+    out::Vector{t} = []
     for i in 1:count
         idx = reinterpret(UInt128, pseudo_random_data!(frng, sizeof(UInt128)))
         idx = convert(UInt128, floor(idx[1]/typemax(UInt128)*length(range)+1))
@@ -331,8 +380,15 @@ function getrand(frng::FortunaRNG, range::AbstractRange = 0:0, count::Integer = 
     out
 end
 
-function getrand(frng::FortunaRNG, t::Type = Float64, count::Integer = 1)
-    count = count < 0 ? -count : count
+function getrand(frng::FortunaRNG, t::Type, count::Integer = 1)
+    #
+    # Guard against non-bits types.
+    #
+    if !isbitstype(t)
+        return []
+    end
+
+    count = abs(count)
     a = reinterpret(t, pseudo_random_data!(frng, sizeof(t) * count))
     Vector{t}(a)
 end
