@@ -220,7 +220,7 @@ end
 # or not.
 #
 function is_zero(b::Vector{UInt8})
-    all(==(first(b)),b)
+    length(b) == 0 || (b[1] == 0 && all(==(first(b)),b))
 end
 
 #
