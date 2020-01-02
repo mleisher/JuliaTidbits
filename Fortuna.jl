@@ -74,6 +74,10 @@ export FortunaRNG, seed!, reset!, pseudo_random_data!, getrand
 #    the beginning of the range. All of the values are taken from the
 #    specified range.
 #
+# getrand(frng::FortunaRNG, v::AbstractVector, count::Integer = 1) -> Vector{Any}
+#
+#    This function returns a vector containing randomly selected elements in the source vector.
+#
 # getrand(frng::FortunaRNG, d::AbstractDict, count::Integer = 1) -> Vector{Pair{Any,Any}}
 #
 #    This function returns a vector of key/value pairs chosen from the dictionary.
@@ -355,6 +359,18 @@ function getrand(frng::FortunaRNG, s::AbstractSet, count::Integer = 1)
         sm = collect(s)
         for idx in getrand(frng, 1:length(s), count)
             push!(out, sm[idx])
+        end
+    end
+    out
+end
+
+function getrand(frng::FortunaRNG, v::AbstractVector, count::Integer = 1)
+    count = abs(count)
+    out::Vector{Any} = []
+
+    if length(v) > 0
+        for idx in getrand(frng, 1::length(v), count)
+            push!(out, v[idx])
         end
     end
     out
