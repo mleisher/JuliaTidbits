@@ -49,9 +49,13 @@ export FortunaRNG, seed!, reset!, pseudo_random_data!, getrand
 #   hoc seed based on system info is collected and added
 #   automatically.
 #
+##############################################################################
+#
 # reset!(r::FortunaRNG)
 #
 #    This resets the hash and cipher used for the RNG.
+#
+##############################################################################
 #
 # seed!(r::FortunaRNG, seed::Vector{UInt8})
 # seed!(r::FortunaRNG, seed)
@@ -60,33 +64,40 @@ export FortunaRNG, seed!, reset!, pseudo_random_data!, getrand
 #    simply writes the seed to an IOBuffer, assuming the type can be
 #    written to a byte stream.
 #
+##############################################################################
+#
 # pseudo_random_data!(r::FortunaRNG, n::Integer) -> Vector{UInt8}
 #
 #    This function returns 'n' bytes of pseudo-random data.
 #
+##############################################################################
+#
 # getrand(r::FortunaRNG, t::Type, count::Integer = 1) -> Vector{t}
 #
-#    This function generates 'count' items of type 't'.
+#    This function generates 'count' items of type 't'. The type ('t')
+#    has to return true when tested with the isbitstype() function.
 #
 # getrand(r::FortunaRNG, range::AbstractRange, count::Integer = 1) -> Vector{typeof(range[1])}
 #
-#    This function generates 'count' items that have the same type as
-#    the beginning of the range. All of the values are taken from the
-#    specified range.
+#    This function returns a vector of 'count' items that have the
+#    same type as the beginning of the range. All of the values are
+#    taken from the specified range. The range type has to return true
+#    when tested with the isbitstype() function.
 #
 # getrand(frng::FortunaRNG, v::AbstractVector, count::Integer = 1) -> Vector{Any}
 #
-#    This function returns a vector containing randomly selected elements in the source vector.
+#    This function returns a vector containing 'count' randomly
+#    selected elements from the source vector.
 #
 # getrand(frng::FortunaRNG, d::AbstractDict, count::Integer = 1) -> Vector{Pair{Any,Any}}
 #
-#    This function returns a vector of key/value pairs chosen from the dictionary.
+#    This function returns a vector containing 'count' randomly chosen
+#    key/value pairs from the dictionary.
 #
 # getrand(frng::FortunaRNG, s::AbstractSet, count::Integer = 1) -> Vector{Any}
 #
-#    This function returns a vector of set members.
+#    This function returns a vector containing 'count' randomly chosen set members.
 #
-
 
 using Random
 using Nettle
