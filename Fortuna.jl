@@ -380,7 +380,7 @@ function getrand(frng::FortunaRNG, v::AbstractVector, count::Integer = 1)
     out::Vector{Any} = []
 
     if length(v) > 0
-        for idx in getrand(frng, 1::length(v), count)
+        for idx in getrand(frng, 1:length(v), count)
             push!(out, v[idx])
         end
     end
