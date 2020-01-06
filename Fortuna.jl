@@ -33,7 +33,16 @@
 #
 module Fortuna
 
-export FortunaRNG, seed!, reset!, pseudo_random_data!, getrand
+export FortunaRNG, Close0Open1, Close1Open2, NoInterval, seed!, reset!, pseudo_random_data!, getrand
+
+#
+# The intervals for floating point numbers:
+#
+# Close0Open1 -> [0, 1)
+# Close1Open2 -> [1, 2)
+# NoInterval  -> Any floating point number within the bounds of the type
+#
+@enum FortunaFloatInterval Close0Open1 Close1Open2 NoInterval
 
 #
 # Short documentation:
@@ -72,10 +81,18 @@ export FortunaRNG, seed!, reset!, pseudo_random_data!, getrand
 #
 ##############################################################################
 #
-# getrand(r::FortunaRNG, t::Type, count::Integer = 1) -> Vector{t}
+# getrand(r::FortunaRNG, t::Type, count::Integer = 1,
+#         bounds::FortunaFloatInterval = Close0Open1) -> Vector{t}
 #
 #    This function generates 'count' items of type 't'. The type ('t')
 #    has to return true when tested with the isbitstype() function.
+#
+#    The 'bounds' parameter can have one of three intervals that only
+#    apply to Float types:
+#
+#      Close0Open1 -> [0, 1)
+#      Close1Open2 -> [1, 2)
+#      NoInterval  -> ± Infinity
 #
 # getrand(r::FortunaRNG, range::AbstractRange, count::Integer = 1) -> Vector{typeof(range[1])}
 #
@@ -400,6 +417,9 @@ function getrand(frng::FortunaRNG, range::AbstractRange, count::Integer = 1)
     count = abs(count)
     out::Vector{t} = []
     for i in 1:count
+        #
+        # Use a UInt128 in case it is a very, very, very large range.
+        #
         idx = reinterpret(UInt128, pseudo_random_data!(frng, sizeof(UInt128)))
         idx = convert(UInt128, floor(idx[1]/typemax(UInt128)*length(range)+1))
         append!(out, range[idx])
@@ -407,7 +427,7 @@ function getrand(frng::FortunaRNG, range::AbstractRange, count::Integer = 1)
     out
 end
 
-function getrand(frng::FortunaRNG, t::Type, count::Integer = 1)
+function getrand(frng::FortunaRNG, t::Type, count::Integer = 1, bounds::FortunaFloatInterval = Close0Open1)
     #
     # Guard against non-bits types.
     #
@@ -416,7 +436,13 @@ function getrand(frng::FortunaRNG, t::Type, count::Integer = 1)
     end
 
     count = abs(count)
-    a = reinterpret(t, pseudo_random_data!(frng, sizeof(t) * count))
+    if t <: Union{Float16,Float32,Float64} && bounds != NoInterval
+        sub = bounds == CloseOpen01 ? 1.0 : 0.0
+        a = map(x -> significand(abs(x)) - sub,
+                reinterpret(t, pseudo_random_data!(frng, sizeof(t) * count)))
+    else
+        a = reinterpret(t, pseudo_random_data!(frng, sizeof(t) * count))
+    end
     Vector{t}(a)
 end
 
